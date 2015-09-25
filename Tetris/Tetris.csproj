@@ -49,13 +49,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CommandNumerator.cs" />
+    <Compile Include="Game%28unusable%29.cs" />
     <Compile Include="Game.cs" />
     <Compile Include="GameInfo.cs" />
     <Compile Include="IFigure.cs" />
-    <Compile Include="Point.cs" />
+    <Compile Include="Pieces.cs" />
+    <Compile Include="Cell.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Figure.cs" />
+    <Compile Include="Piece.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

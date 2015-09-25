@@ -14,10 +14,11 @@ namespace Tetris
         static void Main(string[] args)
         {
             var jsonFile = File.ReadAllText("smallest.json");
-            GameInfo gameInfo = JsonConvert.DeserializeObject<GameInfo>(jsonFile);
+            Game game= JsonConvert.DeserializeObject<Game>(jsonFile);
+            //Game game = new Game();
             //var jsonFile = Directory.GetFiles( AppDomain.CurrentDomain.BaseDirectory,"smallest.json").
             //    FirstOrDefault();
-            Console.WriteLine(gameInfo.ToString());
+            //Console.WriteLine(gameInfo.ToString());
         }
 
         static void ShowGameCondition(GameInfo gameInfo)

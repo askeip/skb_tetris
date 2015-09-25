@@ -13,12 +13,12 @@ namespace Tetris
         public int Width { get { return width; } }
         readonly int height;
         public int Height { get { return height; } }
-        readonly ImmutableArray<Figure> pieces;
-        public ImmutableArray<Figure> Pieces { get { return pieces; } }
+        readonly ImmutableArray<Piece> pieces;
+        public ImmutableArray<Piece> Pieces { get { return pieces; } }
         readonly string commands;
         public string Commands { get { return commands; } }
 
-        public GameInfo(int width, int height, ImmutableArray<Figure> pieces, string commands)
+        public GameInfo(int width, int height, ImmutableArray<Piece> pieces, string commands)
         {
             this.width = width;
             this.height = height;
@@ -34,9 +34,9 @@ namespace Tetris
 
     class CellsClass
     {
-        readonly ImmutableArray<Point> cells;
-        public ImmutableArray<Point> Cells { get { return cells; } }
-        public CellsClass(ImmutableArray<Point> cells)
+        readonly ImmutableArray<Cell> cells;
+        public ImmutableArray<Cell> Cells { get { return cells; } }
+        public CellsClass(ImmutableArray<Cell> cells)
         {
             this.cells = cells;
         }
