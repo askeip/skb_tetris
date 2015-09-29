@@ -25,6 +25,9 @@ namespace Tetris
             return piecesArray[currentPiece];
         }
 
-
+        public Pieces ChangeCurrentPiece()
+        {
+            return new Pieces(piecesArray, currentPiece + 1);
+        }
     }
 }
