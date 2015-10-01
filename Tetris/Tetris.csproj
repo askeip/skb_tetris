@@ -52,6 +52,7 @@
     <Compile Include="Game%28unusable%29.cs" />
     <Compile Include="Game.cs" />
     <Compile Include="GameInfo.cs" />
+    <Compile Include="GameLine.cs" />
     <Compile Include="IFigure.cs" />
     <Compile Include="Pieces.cs" />
     <Compile Include="Cell.cs" />

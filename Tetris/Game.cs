@@ -13,72 +13,70 @@ namespace Tetris
     class Game
     {
         readonly ImmutableArray<ImmutableArray<Cell>> gameField;
+        private readonly int width;
+        public int Width { get { return width; } }
         public ImmutableArray<ImmutableArray<Cell>> GameField {get {return gameField;}}
         readonly Pieces pieces;
         public Pieces PubPieces { get { return pieces; } } 
         readonly Piece movingPiece;
         public Piece MovingPiece { get { return movingPiece; } }
-        private readonly string commands;
+        /*private readonly string commands;
         private readonly int commandNum;
         public int CommandNum { get { return commandNum; } }
-        public string Commands { get { return commands; } }
+        public string Commands { get { return commands; } }*/
         private readonly int score;
         public int Score { get { return score; } }
         private readonly bool pieceFixed;
         public bool PieceFixed { get { return pieceFixed; } }
+        private readonly ImmutableArray<int> linesLength;
 
-        [JsonConstructor]
-        public Game(int width,int height,ImmutableArray<Piece> pieces,
-            string commands,bool pieceFixed = false)
+        //[JsonConstructor]
+        public Game(int width, int height, ImmutableArray<Piece> pieces, bool pieceFixed = false)
+            //string commands,bool pieceFixed = false)
         {
+            this.width = width;
             this.pieces = CentralizedPieces(pieces, width);
             movingPiece = this.pieces.GetCurrentPiece();
             this.pieces = new Pieces(this.pieces.PiecesArray,this.pieces.CurrentPiece + 1);
-            gameField = CreateGameField(width, height);
-            this.commands = commands;
-            commandNum = 0;
+            int[] mutablelinesLength;
+            gameField = CreateGameField(width, height,out mutablelinesLength);
+            linesLength = ImmutableArray.Create(mutablelinesLength);
+            //this.commands = commands;
+            //commandNum = 0;
             score = 0;
             this.pieceFixed = pieceFixed;
         }
 
         public Game(ImmutableArray<ImmutableArray<Cell>> gameField, Pieces pieces,
-            Piece movingPiece, int commandNum,string commands, int score,bool pieceFixed = false)
+            Piece movingPiece, int[] mutableLinesLength, int score, int width, bool pieceFixed = false) // int commandNum,string commands, 
         {
             this.gameField = gameField;
             this.pieces = pieces;
-            this.commandNum = commandNum;
-            this.commands = commands;
+            linesLength = ImmutableArray.Create(mutableLinesLength);
+            //this.commandNum = commandNum;
+            //this.commands = commands;
             this.score = score;
             this.movingPiece = movingPiece;
+            this.width = width;
             this.pieceFixed = pieceFixed;
         }
 
-        private ImmutableArray<ImmutableArray<Cell>> CreateGameField(int width, int height,Piece movingPiece = null)
+        private ImmutableArray<ImmutableArray<Cell>> CreateGameField(int width, int height,
+            out int[] mutablelinesLength, Piece movingPiece = null)
         {
+            mutablelinesLength = new int[height];//linesLength == null ? new int[height] : linesLength.Select(z=>z).ToArray();
             if (movingPiece == null)
-                movingPiece = this.movingPiece;
+                movingPiece = this.movingPiece != null ? this.movingPiece : pieces.GetCurrentPiece();
             ImmutableArray<Cell>[] mutableGameField = new ImmutableArray<Cell>[height];
             Cell[][] arrayField = new Cell[mutableGameField.Length][];
-            for (int i = 0; i < mutableGameField.Length;i++)
-            {
-                Cell[] row = new Cell[width];
-                for (int j = 0; j < row.Length; j++)
-                {
-                    row[j] = null;
-                }
-                arrayField[i] = row;
-            }
             foreach (var point in movingPiece.Cells)
             {
-                if (arrayField[point.Y][point.X] == null)
-                    arrayField[point.Y][point.X] = point;
-                else
-                    throw new SmallGameFieldException();
+                if (arrayField[point.Y] == null)
+                    arrayField[point.Y] = new Cell[width];
+                arrayField[point.Y][point.X] = point;
+                mutablelinesLength[point.Y]++;
             }
-            for (int i = 0; i < mutableGameField.Length; i++)
-            {
-                mutableGameField[i] = ImmutableArray.Create(arrayField[i]);
-            }
+            mutableGameField = arrayField.Select(z => ImmutableArray.Create(z)).ToArray();
             return ImmutableArray.Create(mutableGameField);
         }
 
@@ -110,40 +108,47 @@ namespace Tetris
             {
                 mutableGameField[cell.Y][cell.X] = cell.StopMoving();
             }
-            List<int> fullLines = FullLines(mutableGameField);
-            mutableGameField = DeleteFullLines(mutableGameField, fullLines);
+            List<int> fullLines = FullLines();
+            int[] mutableLinesLength = linesLength.Select(z => z).ToArray();
+            mutableGameField = DeleteFullLines(mutableGameField, fullLines,mutableLinesLength);
             foreach (var cell in movedPiece.Cells)
             {
+                if (mutableGameField[cell.Y] == null)
+                    mutableGameField[cell.Y] = new Cell[width];
                 if (mutableGameField[cell.Y][cell.X] == null)
+                {
                     mutableGameField[cell.Y][cell.X] = cell.StartMoving();
+                    mutableLinesLength[cell.Y]++;
+                }
                 else
                 {
                     piecesNext = pieces.ChangeCurrentPiece(); //ne fact
-                    return new Game(CreateGameField(gameField[0].Length, gameField.Length,movedPiece),
-                        piecesNext, movedPiece, commandNum + 1, commands, score + fullLines.Count - 10,true);
+                    var changedGameField = CreateGameField(width, gameField.Length, out mutableLinesLength,
+                        movedPiece);
+                    return new Game(changedGameField,
+                        piecesNext, movedPiece, mutableLinesLength, score + fullLines.Count - 10, width, true);
                 }
 
             }
             ImmutableArray<ImmutableArray<Cell>> reworkedGameField =
                 ImmutableArray.Create(mutableGameField.Select(z => ImmutableArray.Create(z))
                     .ToArray());
-            return new Game(reworkedGameField,piecesNext,movedPiece,commandNum + 1,commands,score + fullLines.Count,true);
+            return new Game(reworkedGameField,piecesNext,movedPiece,mutableLinesLength,score + fullLines.Count,width,true);
         }
 
-        public List<int> FullLines(Cell[][] mutableGameField)
+        public List<int> FullLines()
         {
             List<int> fullLines = new List<int>();
             for (int i = movingPiece.MinY; i <= movingPiece.MaxY; i++)
             {
                 //!!!!!!!!!!!!!!!!!
-                if (mutableGameField[i].Where(z => z != null)
-                    .Count() == mutableGameField[i].Length)
+                if (linesLength[i] != 0 && linesLength[i] == gameField[i].Length)
                     fullLines.Add(i);
             }
             return fullLines;
         }
 
-        public Cell[][] DeleteFullLines(Cell[][] mutableGameField, List<int> fullLines)
+        public Cell[][] DeleteFullLines(Cell[][] mutableGameField, List<int> fullLines,int[] mutableLinesLength)
         {
             for (int i = 0; i < fullLines.Count; i++)
             {
@@ -152,48 +157,58 @@ namespace Tetris
                 for (int j = lineToStart; j > lineToStop; j--)
                 {
                     mutableGameField[j + i] = mutableGameField[j - 1];//ne fact
+                    mutableLinesLength[j + i] = mutableLinesLength[j - 1];
                 }
             }
             for (int i = 0; i < fullLines.Count; i++)
             {
-                mutableGameField[i] = new Cell[mutableGameField[i].Length];
+                mutableGameField[i] = null;//new Cell[mutableGameField[i].Length];
+                mutableLinesLength[i] = 0;
             }
             return mutableGameField;
         }
 
-        public Game MovePiece()
+        public Game MovePiece(Piece movedPiece)
         {
-            var command = Commands[commandNum]; //commandNum++
-            Piece movedPiece = ExecuteCommand(command);
+            //var command = Commands[commandNum]; //commandNum++
+            //Piece movedPiece = GetCurrentCommand(command);
             if (movedPiece == null)
                 return PlaceNextPiece();
             int minY = movedPiece.MinY > movingPiece.MinY ? movingPiece.MinY : movedPiece.MinY;
             int maxY = movedPiece.MaxY > movingPiece.MaxY ? movedPiece.MaxY : movingPiece.MaxY;
             Cell[][] changedArrays = GameFieldMutablePart(minY, maxY); //movedPiece,
+            int[] mutableLinesLength = linesLength.Select(z => z).ToArray();
             int movingYDiff = movingPiece.MinY - minY;
             foreach (var cell in movingPiece.Cells)
-            {
-                changedArrays[cell.Y - movingPiece.MinY + movingYDiff][cell.X] = null;
+            {//?DSLKFJDSNLFSKDJLSEFDKL///
+                int y = cell.Y - movingPiece.MinY + movingYDiff;
+                mutableLinesLength[cell.Y]--;
+                if (mutableLinesLength[cell.Y] == 0)
+                    changedArrays[y] = null;
+                else
+                    changedArrays[y][cell.X] = null;
             }
             bool wrongPlacement = false;
             int movedYDiff = movedPiece.MinY - minY;
-            foreach (var point in movedPiece.Cells)
+            foreach (var cell in movedPiece.Cells)
             {
-                if (changedArrays[point.Y - movedPiece.MinY + movedYDiff][point.X] != null)
+                int y = cell.Y - movedPiece.MinY + movedYDiff;
+                if (mutableLinesLength[cell.Y] == 0)
+                    changedArrays[y] = new Cell[width];
+                if (changedArrays[y][cell.X] != null)
                 {
                     wrongPlacement = true;
+                    break;
                 }
-                changedArrays[point.Y - movedPiece.MinY + movedYDiff][point.X] = point;
+                changedArrays[y][cell.X] = cell;
+                mutableLinesLength[cell.Y]++;
             }
             if (wrongPlacement)
-            {//!!!!!!!!!!!!!!!!!
+            {
                 return PlaceNextPiece();
-                //piecesNext = pieces.ChangeCurrentPiece();
-                //return new Game(CreateGameField(gameField[0].Length,gameField.Length),
-                //    piecesNext, piecesNext.GetCurrentPiece(),commandNum + 1, commands, score);
             }
             return new Game(ReworkedGameField(changedArrays,minY,maxY),pieces,
-                movedPiece,commandNum + 1,commands,score);
+                movedPiece,mutableLinesLength,score,width);
         }
 
         public ImmutableArray<ImmutableArray<Cell>> ReworkedGameField(Cell[][] changedArrays, int minY, int maxY)
@@ -220,7 +235,12 @@ namespace Tetris
             Cell[][] changedArrays = new Cell[changedArraysAmount][];
             for (int i = 0; i < changedArrays.Length; i++)
             {
-                changedArrays[i] = new Cell[gameField[0].Length];
+                if (gameField[minY + i].Length == 0)
+                {
+                    changedArrays[i] = null;
+                    continue;
+                }
+                changedArrays[i] = new Cell[gameField[minY + i].Length];
                 for (int j = 0; j < changedArrays[i].Length; j++)
                 {
                     changedArrays[i][j] = gameField[minY + i][j];
@@ -229,35 +249,6 @@ namespace Tetris
             return changedArrays;
         }
 
-        public char GetCurrentCommand()
-        {
-            return commands[commandNum];
-        }
-
-        public Piece ExecuteCommand(char command)
-        {
-            command = char.ToLower(command);
-            Piece result;
-            switch (command)
-            {
-                case 'a':
-                    result = MovingPiece.MoveTowards(-1, gameField[0].Length);
-                    break;
-                case 'd':
-                    result = MovingPiece.MoveTowards(1, gameField[0].Length);
-                    break;
-                case 's':
-                    result = MovingPiece.MoveDown(1,gameField.Length);
-                    break;
-                case 'q':
-                    result = MovingPiece.TurnLeft(gameField[0].Length, gameField.Length);
-                    break;
-                default://case 'e':
-                    result = MovingPiece.TurnRight(gameField[0].Length, gameField.Length);
-                    break;
-            }
-            return result;
-        }
 
         public override string ToString()
         {
@@ -265,9 +256,9 @@ namespace Tetris
             //fieldInfo.Append((commandNum - 1) + " " + score);
             for (int i = 0; i < gameField.Length; i++)
             {
-                for (int j = 0; j < gameField[i].Length; j++)
+                for (int j = 0; j < width; j++)
                 {
-                    fieldInfo.Append((gameField[i][j] == null ? "." : gameField[i][j].ToString()) + " ");
+                    fieldInfo.Append((gameField[i].Length == 0 || gameField[i][j] == null ? "." : gameField[i][j].ToString()) + " ");
                 }
                 fieldInfo.Append("\n");
             }
@@ -275,11 +266,11 @@ namespace Tetris
         }
     }
 
-    internal class SmallGameFieldException : Exception
+    /*internal class SmallGameFieldException : Exception
     {
         public override string Message
         {
             get { return "Cant place piece on this gamefield"; }
         }
-    }
+    }*/
 }
