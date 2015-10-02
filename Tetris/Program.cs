@@ -15,10 +15,12 @@ namespace Tetris
     {
         static void Main(string[] args)
         {
-            var jsonFile = File.ReadAllText("random-w100-h99-c10000.json");
+            var jsonFile = File.ReadAllText("random-w100000-h5-c100000.json");
             GameInfo gameInfo = JsonConvert.DeserializeObject<GameInfo>(jsonFile);
             Game game = new Game(gameInfo.Width,gameInfo.Height,gameInfo.Pieces);
             Commands commands = new Commands(gameInfo.Commands);
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
             while (!commands.IsFinished())
             {
                 char command = commands.GetCurrentCommand();
@@ -34,8 +36,16 @@ namespace Tetris
                 else
                 {
                     Console.WriteLine(game.ToString());
-                }            
+                }
+                /*if (commands.CommandNum > 425)
+                {
+                    Console.WriteLine(commands.GetCurrentCommand());
+                    Console.WriteLine(game.ToString());
+                    Console.ReadKey();
+                }*/
             }
+            sw.Stop();
+            Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
         public static Piece ExecuteCommand(Game game,char command)
